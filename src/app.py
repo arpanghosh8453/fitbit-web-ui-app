@@ -137,6 +137,8 @@ def update_output(n_clicks, value, start_date, end_date):
         spo2_list += [None]*(dates_str_list.index(entry["dateTime"])-len(spo2_list))
         spo2_list.append(entry["value"]["avg"])
 
+    print(len(dates_list),len(rhr_list),len(steps_list),len(fat_burn_minutes_list),len(cardio_minutes_list),len(peak_minutes_list),len(weight_list),len(spo2_list))
+
     df_merged = pd.DataFrame({
     "Date": dates_list,
     "Resting Heart Rate": rhr_list,
