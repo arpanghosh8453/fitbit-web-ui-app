@@ -4,6 +4,7 @@ from dash import dcc
 from dash import html
 from dash.dependencies import Output, State, Input
 import pandas as pd
+import numpy as np
 import plotly.express as px
 from datetime import datetime, timedelta
 
@@ -162,6 +163,8 @@ def update_output(n_clicks, value, start_date, end_date):
     "SPO2": spo2_list
     })
 
+    non_zero_steps_df = df_merged[df_merged["Steps Count"] != 0]
+
     # Plotting data-----------------------------------------------------------------------------------------------------------------------
 
     fig_rhr = px.line(df_merged, x="Date", y="Resting Heart Rate", line_shape="spline", color_discrete_sequence=["#d30f1c"], title="Daily Resting Heart Rate")
@@ -170,6 +173,9 @@ def update_output(n_clicks, value, start_date, end_date):
     fig_rhr.add_hline(y=df_merged["Resting Heart Rate"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Resting Heart Rate"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     fig_rhr.add_hrect(y0=62, y1=68, fillcolor="green", opacity=0.15, line_width=0)
     fig_steps = px.bar(df_merged, x="Date", y="Steps Count", title="Daily Steps Count")
+    fig_steps.add_annotation(x=df_merged.iloc[df_merged["Steps Count"].idxmax()]["Date"], y=df_merged["Steps Count"].max(), text=str(df_merged["Steps Count"].max())+" steps", showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_steps.add_annotation(x=non_zero_steps_df.iloc[non_zero_steps_df["Steps Count"].idxmin()]["Date"], y=non_zero_steps_df["Steps Count"].min(), text=str(non_zero_steps_df["Steps Count"].min())+" steps", showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_steps.add_hline(y=non_zero_steps_df["Steps Count"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Steps Count"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.8, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     fig_activity_minutes = px.bar(df_merged, x="Date", y=["Fat Burn Minutes", "Cardio Minutes", "Peak Minutes"], title="Activity Minutes")
     fig_activity_minutes.update_layout(yaxis_title='Active Minutes')
     fig_weight = px.line(df_merged, x="Date", y="weight", line_shape="spline", color_discrete_sequence=["#6b3908"], title="Weight")
