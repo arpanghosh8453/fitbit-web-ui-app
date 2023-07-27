@@ -13,11 +13,9 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
-# assume you have a "long-form" data frame
-# see https://plotly.com/python/px-arguments/ for more options
 
 app.layout = html.Div(children=[
-    # All elements from the top of the page
+
     html.Div(style={
         'display': 'flex',
         'align-items': 'center',
@@ -79,9 +77,23 @@ app.layout = html.Div(children=[
         ),
     ]),
 ])
+
+# Limits the date range to one year max
+@app.callback(Output('my-date-picker-range', 'max_date_allowed'), Output('my-date-picker-range', 'end_date'),
+             [Input('my-date-picker-range', 'start_date')])
+def set_max_date_allowed(start_date):
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    max_end_date = start + timedelta(days=365)
+    return max_end_date, max_end_date
+
+@app.callback(Output('submit-button', 'disabled'), Input('submit-button', 'n_clicks'), prevent_initial_call=True)
+def disable_button_and_calculate(n_clicks):
+    return True
+
+# fetch data and update graphs on click of submit
 @app.callback(Output('graph_RHR', 'figure'), Output('graph_steps', 'figure'), Output('graph_activity_minutes', 'figure'), Output('graph_weight', 'figure'), Output('graph_spo2', 'figure'), Output("loading-output-1", "children"),
-Input('submit-button', 'n_clicks'),
-State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'), 
+Input('submit-button', 'disabled'),
+State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),
 prevent_initial_call=True
 )
 def update_output(n_clicks, value, start_date, end_date):
