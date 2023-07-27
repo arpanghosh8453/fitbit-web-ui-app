@@ -9,9 +9,8 @@ from datetime import datetime, timedelta
 
 
 # %%
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__)
 server = app.server
 
 app.layout = html.Div(children=[
@@ -22,7 +21,8 @@ app.layout = html.Div(children=[
         'justify-content': 'center',
         'gap': '20px',
         'margin': 'auto',
-        'flex-wrap': 'wrap'
+        'flex-wrap': 'wrap',
+        'margin-top': '30px'
     },children=[
         dcc.DatePickerRange(
         id='my-date-picker-range',
@@ -33,7 +33,7 @@ app.layout = html.Div(children=[
         start_date=datetime.today().date() - timedelta(days=365)
         ),
         dcc.Input(id='input-on-submit', value="", placeholder='API ACCESS TOKEN', type='text'),
-        html.Button(id='submit-button', type='submit', children='Submit', n_clicks=0),
+        html.Button(id='submit-button', type='submit', children='Submit', n_clicks=0, className="button-primary"),
     ]),
 
     html.Div(id='loading-div', style={'margin-top': '40px'}, children=[
@@ -86,9 +86,10 @@ def set_max_date_allowed(start_date):
     max_end_date = start + timedelta(days=365)
     return max_end_date, max_end_date
 
-@app.callback(Output('submit-button', 'disabled'), Input('submit-button', 'n_clicks'), prevent_initial_call=True)
+# Disables the button after click and starts calculations
+@app.callback(Output('submit-button', 'disabled'), Output('my-date-picker-range', 'disabled'), Output('input-on-submit', 'disabled'), Input('submit-button', 'n_clicks'), prevent_initial_call=True)
 def disable_button_and_calculate(n_clicks):
-    return True
+    return True, True, True
 
 # fetch data and update graphs on click of submit
 @app.callback(Output('graph_RHR', 'figure'), Output('graph_steps', 'figure'), Output('graph_activity_minutes', 'figure'), Output('graph_weight', 'figure'), Output('graph_spo2', 'figure'), Output("loading-output-1", "children"),
@@ -163,7 +164,11 @@ def update_output(n_clicks, value, start_date, end_date):
 
     # Plotting data-----------------------------------------------------------------------------------------------------------------------
 
-    fig_rhr = px.line(df_merged, x="Date", y="Resting Heart Rate", line_shape="spline", range_y=(40,80), color_discrete_sequence=["#6b3908"], title="Daily Resting Heart Rate")
+    fig_rhr = px.line(df_merged, x="Date", y="Resting Heart Rate", line_shape="spline", color_discrete_sequence=["#d30f1c"], title="Daily Resting Heart Rate")
+    fig_rhr.add_annotation(x=df_merged.iloc[df_merged["Resting Heart Rate"].idxmax()]["Date"], y=df_merged["Resting Heart Rate"].max(), text=str(df_merged["Resting Heart Rate"].max()), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_rhr.add_annotation(x=df_merged.iloc[df_merged["Resting Heart Rate"].idxmin()]["Date"], y=df_merged["Resting Heart Rate"].min(), text=str(df_merged["Resting Heart Rate"].min()), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_rhr.add_hline(y=df_merged["Resting Heart Rate"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Resting Heart Rate"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_rhr.add_hrect(y0=62, y1=68, fillcolor="green", opacity=0.15, line_width=0)
     fig_steps = px.bar(df_merged, x="Date", y="Steps Count", title="Daily Steps Count")
     fig_activity_minutes = px.bar(df_merged, x="Date", y=["Fat Burn Minutes", "Cardio Minutes", "Peak Minutes"], title="Activity Minutes")
     fig_activity_minutes.update_layout(yaxis_title='Active Minutes')
