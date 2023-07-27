@@ -27,7 +27,7 @@ app.layout = html.Div(children=[
     },children=[
         dcc.DatePickerRange(
         id='my-date-picker-range',
-        minimum_nights=30,
+        minimum_nights=40,
         max_date_allowed=datetime.today().date() - timedelta(days=1),
         min_date_allowed=datetime.today().date() - timedelta(days=720),
         end_date=datetime.today().date() - timedelta(days=1),
@@ -46,6 +46,18 @@ app.layout = html.Div(children=[
     ]),
 
     html.Div(id='output_div', children=[
+
+        html.Div(id='report-title-div', 
+        style={
+        'display': 'flex',
+        'align-items': 'center',
+        'justify-content': 'center',
+        'flex-direction': 'column',
+        'margin-top': '20px'}, children=[
+            html.H2(id="report-title", style={'font-weight': 'bold'}),
+            html.H4(id="date-range-title", style={'font-weight': 'bold'}),
+            html.P(id="generated-on-title", style={'font-weight': 'bold', 'font-size': '16'})
+        ]),
 
         dcc.Graph(
             id='graph_RHR',
@@ -93,7 +105,7 @@ def disable_button_and_calculate(n_clicks):
     return True, True, True
 
 # fetch data and update graphs on click of submit
-@app.callback(Output('graph_RHR', 'figure'), Output('graph_steps', 'figure'), Output('graph_activity_minutes', 'figure'), Output('graph_weight', 'figure'), Output('graph_spo2', 'figure'), Output("loading-output-1", "children"),
+@app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('graph_steps', 'figure'), Output('graph_activity_minutes', 'figure'), Output('graph_weight', 'figure'), Output('graph_spo2', 'figure'), Output("loading-output-1", "children"),
 Input('submit-button', 'disabled'),
 State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),
 prevent_initial_call=True
@@ -109,7 +121,8 @@ def update_output(n_clicks, value, start_date, end_date):
     }
 
     # Collecting data-----------------------------------------------------------------------------------------------------------------------
-
+    
+    user_profile = requests.get("https://api.fitbit.com/1/user/-/profile.json", headers=headers).json()
     response_heartrate = requests.get("https://api.fitbit.com/1/user/-/activities/heart/date/"+ start_date +"/"+ end_date +".json", headers=headers).json()
     response_steps = requests.get("https://api.fitbit.com/1/user/-/activities/steps/date/"+ start_date +"/"+ end_date +".json", headers=headers).json()
     response_weight = requests.get("https://api.fitbit.com/1/user/-/body/weight/date/"+ start_date +"/"+ end_date +".json", headers=headers).json()
@@ -117,6 +130,9 @@ def update_output(n_clicks, value, start_date, end_date):
 
     # Processing data-----------------------------------------------------------------------------------------------------------------------
 
+    report_title = "Wellness report - " + user_profile["user"]["firstName"] + " " + user_profile["user"]["lastName"]
+    report_dates_range = datetime.fromisoformat(start_date).strftime("%d %B, %Y") + " – " + datetime.fromisoformat(end_date).strftime("%d %B, %Y")
+    generated_on_date = "Report Generated :" + datetime.today().date().strftime("%d %B, %Y")
     dates_list = []
     dates_str_list = []
     rhr_list = []
@@ -164,25 +180,33 @@ def update_output(n_clicks, value, start_date, end_date):
     })
 
     non_zero_steps_df = df_merged[df_merged["Steps Count"] != 0]
+    df_merged["Total Active Minutes"] = df_merged["Fat Burn Minutes"] + df_merged["Cardio Minutes"] + df_merged["Peak Minutes"]
+    rhr_avg = {'overall': round(df_merged["Resting Heart Rate"].mean(),1), '30d': round(df_merged["Resting Heart Rate"].tail(30).mean(),1)}
+    steps_avg = {'overall': round(non_zero_steps_df["Steps Count"].mean(),0), '30d': round(non_zero_steps_df["Steps Count"].tail(30).mean(),0)}
+    weight_avg = {'overall': round(df_merged["weight"].mean(),1), '30d': round(df_merged["weight"].tail(30).mean(),1)}
+    active_mins_avg = {'overall': round(df_merged["Total Active Minutes"].mean(),2), '30d': round(df_merged["Total Active Minutes"].tail(30).mean(),2)}
 
     # Plotting data-----------------------------------------------------------------------------------------------------------------------
 
-    fig_rhr = px.line(df_merged, x="Date", y="Resting Heart Rate", line_shape="spline", color_discrete_sequence=["#d30f1c"], title="Daily Resting Heart Rate")
+    fig_rhr = px.line(df_merged, x="Date", y="Resting Heart Rate", line_shape="spline", color_discrete_sequence=["#d30f1c"], title=f"<b>Daily Resting Heart Rate<br><br><sup>Overall average : {rhr_avg['overall']} bpm | Last 30d average : {rhr_avg['30d']} bpm</sup></b><br><br><br>")
     fig_rhr.add_annotation(x=df_merged.iloc[df_merged["Resting Heart Rate"].idxmax()]["Date"], y=df_merged["Resting Heart Rate"].max(), text=str(df_merged["Resting Heart Rate"].max()), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_rhr.add_annotation(x=df_merged.iloc[df_merged["Resting Heart Rate"].idxmin()]["Date"], y=df_merged["Resting Heart Rate"].min(), text=str(df_merged["Resting Heart Rate"].min()), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_rhr.add_hline(y=df_merged["Resting Heart Rate"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Resting Heart Rate"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     fig_rhr.add_hrect(y0=62, y1=68, fillcolor="green", opacity=0.15, line_width=0)
-    fig_steps = px.bar(df_merged, x="Date", y="Steps Count", title="Daily Steps Count")
+    fig_steps = px.bar(df_merged, x="Date", y="Steps Count", title=f"<b>Daily Steps Count<br><br><sup>Overall average : {steps_avg['overall']} steps | Last 30d average : {steps_avg['30d']} steps</sup></b><br><br><br>")
     fig_steps.add_annotation(x=df_merged.iloc[df_merged["Steps Count"].idxmax()]["Date"], y=df_merged["Steps Count"].max(), text=str(df_merged["Steps Count"].max())+" steps", showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_steps.add_annotation(x=non_zero_steps_df.iloc[non_zero_steps_df["Steps Count"].idxmin()]["Date"], y=non_zero_steps_df["Steps Count"].min(), text=str(non_zero_steps_df["Steps Count"].min())+" steps", showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_steps.add_hline(y=non_zero_steps_df["Steps Count"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Steps Count"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.8, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
-    fig_activity_minutes = px.bar(df_merged, x="Date", y=["Fat Burn Minutes", "Cardio Minutes", "Peak Minutes"], title="Activity Minutes")
-    fig_activity_minutes.update_layout(yaxis_title='Active Minutes')
-    fig_weight = px.line(df_merged, x="Date", y="weight", line_shape="spline", color_discrete_sequence=["#6b3908"], title="Weight")
-    fig_spo2 = px.bar(df_merged, x="Date", y="SPO2", title="SPO2 Percentage", range_y=(80,100))
+    fig_activity_minutes = px.bar(df_merged, x="Date", y=["Fat Burn Minutes", "Cardio Minutes", "Peak Minutes"], title=f"<b>Activity Minutes<br><br><sup>Overall average : {active_mins_avg['overall']} minutes | Last 30d average : {active_mins_avg['30d']} minutes</sup></b><br><br><br>")
+    fig_activity_minutes.update_layout(yaxis_title='Active Minutes', legend=dict(orientation="h",yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''))
+    fig_weight = px.line(df_merged, x="Date", y="weight", line_shape="spline", color_discrete_sequence=["#6b3908"], title=f"<b>Weight<br><br><sup>Overall average : {weight_avg['overall']} Unit | Last 30d average : {weight_avg['30d']} Unit</sup></b><br><br><br>")
+    fig_weight.add_annotation(x=df_merged.iloc[df_merged["weight"].idxmax()]["Date"], y=df_merged["weight"].max(), text=str(df_merged["weight"].max()), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_weight.add_annotation(x=df_merged.iloc[df_merged["weight"].idxmin()]["Date"], y=df_merged["weight"].min(), text=str(df_merged["weight"].min()), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_weight.add_hline(y=round(df_merged["weight"].mean(),1), line_dash="dot",annotation_text="Average : " + str(round(df_merged["weight"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_spo2 = px.bar(df_merged, x="Date", y="SPO2", title="<b>SPO2 Percentage</b>", range_y=(80,100))
 
     
-    return fig_rhr, fig_steps, fig_activity_minutes, fig_weight, fig_spo2, ""
+    return report_title, report_dates_range, generated_on_date, fig_rhr, fig_steps, fig_activity_minutes, fig_weight, fig_spo2, ""
 
 if __name__ == '__main__':
     app.run_server(debug=True)
