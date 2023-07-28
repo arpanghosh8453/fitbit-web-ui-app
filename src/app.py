@@ -17,7 +17,10 @@ app.title = "Fitbit Wellness Report"
 server = app.server
 
 app.layout = html.Div(children=[
-
+    dcc.ConfirmDialog(
+        id='errordialog',
+        message='Invalid Access Token : Unable to fetch data',
+    ),
     html.Div(id="input-area", className="hidden-print",
     style={
         'display': 'flex',
@@ -129,7 +132,7 @@ app.layout = html.Div(children=[
         html.Div(style={"height": '40px'}),
         html.Div(className="hidden-print", style={'margin': 'auto', 'text-align': 'center'}, children=[
         dash_dangerously_set_inner_html.DangerouslySetInnerHTML( '''
-        <form action="https://www.paypal.com/donate" method="post" target="_top">
+        <form action="https://www.paypal.com/donate" method="post" target="_blank">
 <input type="hidden" name="hosted_button_id" value="X4CFTUDJ9ZXX2" />
 <input type="image" src="https://pics.paypal.com/00/s/ZjQwZTU5NjktYzM2Ny00MTM3LTkzZWEtNDkwMjE2NGYzNDM4/file.PNG" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
 <img alt="" border="0" src="https://www.paypal.com/en_CA/i/scr/pixel.gif" width="1" height="1" />
@@ -191,9 +194,18 @@ def set_max_date_allowed(start_date):
     return max_end_date, max_end_date
 
 # Disables the button after click and starts calculations
-@app.callback(Output('submit-button', 'disabled'), Output('my-date-picker-range', 'disabled'), Output('input-on-submit', 'disabled'), Input('submit-button', 'n_clicks'), prevent_initial_call=True)
-def disable_button_and_calculate(n_clicks):
-    return True, True, True
+@app.callback(Output('errordialog', 'displayed'), Output('submit-button', 'disabled'), Output('my-date-picker-range', 'disabled'), Output('input-on-submit', 'disabled'), Input('submit-button', 'n_clicks'), State('input-on-submit', 'value'), prevent_initial_call=True)
+def disable_button_and_calculate(n_clicks, value):
+    headers = {
+        "Authorization": "Bearer " + value,
+        "Accept": "application/json"
+    }
+    try:
+        token_response = requests.get("https://api.fitbit.com/1/user/-/profile.json", headers=headers)
+        token_response.raise_for_status()
+    except:
+        return True, False, False, False
+    return False, True, True, True
 
 # fetch data and update graphs on click of submit
 @app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('sleep_table', 'children'), Output("loading-output-1", "children"),
