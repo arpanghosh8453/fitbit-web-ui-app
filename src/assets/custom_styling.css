@@ -261,7 +261,8 @@ select {
   border-radius: 4px;
   box-shadow: none;
   box-sizing: border-box; 
-  font-family: inherit;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
   font-size: inherit; /*https://stackoverflow.com/questions/6080413/why-doesnt-input-inherit-the-font-from-body*/}
 /* Removes awkward default styles on some inputs for iOS */
 input[type="email"],

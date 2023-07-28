@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from datetime import datetime, timedelta
+import dash_dangerously_set_inner_html
 
 
 # %%
@@ -16,7 +17,7 @@ server = app.server
 
 app.layout = html.Div(children=[
 
-    html.Div(className="hidden-print",
+    html.Div(id="input-area", className="hidden-print",
     style={
         'display': 'flex',
         'align-items': 'center',
@@ -28,6 +29,7 @@ app.layout = html.Div(children=[
     },children=[
         dcc.DatePickerRange(
         id='my-date-picker-range',
+        display_format='MMMM DD, Y',
         minimum_nights=40,
         max_date_allowed=datetime.today().date() - timedelta(days=1),
         min_date_allowed=datetime.today().date() - timedelta(days=1000),
@@ -37,7 +39,10 @@ app.layout = html.Div(children=[
         dcc.Input(id='input-on-submit', value="", placeholder='API ACCESS TOKEN', type='text'),
         html.Button(id='submit-button', type='submit', children='Submit', n_clicks=0, className="button-primary"),
     ]),
-
+    html.Div(id="instruction-area", className="hidden-print", style={'margin-top':'30px', 'margin-right':'auto', 'margin-left':'auto','text-align':'center'}, children=[
+        html.P( "Allowed Date Range : Minimum 40 days — Maximum 365 days", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
+        html.P("FAQ : Where can I get my ACCESS TOKEN?", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'})
+    ]),
     html.Div(id='loading-div', style={'margin-top': '40px'}, children=[
     dcc.Loading(
             id="loading-progress",
@@ -112,6 +117,15 @@ app.layout = html.Div(children=[
         ),
         html.Div(id='spo2_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
+        html.Div(className="hidden-print", style={'margin': 'auto', 'text-align': 'center'}, children=[
+        dash_dangerously_set_inner_html.DangerouslySetInnerHTML( '''
+        <form action="https://www.paypal.com/donate" method="post" target="_top">
+<input type="hidden" name="hosted_button_id" value="X4CFTUDJ9ZXX2" />
+<input type="image" src="https://pics.paypal.com/00/s/ZjQwZTU5NjktYzM2Ny00MTM3LTkzZWEtNDkwMjE2NGYzNDM4/file.PNG" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
+<img alt="" border="0" src="https://www.paypal.com/en_CA/i/scr/pixel.gif" width="1" height="1" />
+</form>
+        ''')]),
+        html.Div(style={"height": '25px'}),
     ]),
 ])
 
