@@ -13,6 +13,7 @@ import dash_dangerously_set_inner_html
 # %%
 
 app = dash.Dash(__name__)
+app.title = "Fitbit Wellness Report"
 server = app.server
 
 app.layout = html.Div(children=[
@@ -117,6 +118,15 @@ app.layout = html.Div(children=[
         ),
         html.Div(id='spo2_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
+        html.H4("Sleep", style={'font-weight': 'bold'}),
+        html.H6("Fitbit estimates sleep stages (awake, REM, light sleep and deep sleep) and sleep duration based on a person's movement and heart-rate patterns. The National Sleep Foundation recommends 7-9 hours of sleep per night for adults"),
+        dcc.Graph(
+            id='graph_sleep',
+            figure=px.bar(),
+            config= {'displaylogo': False}
+        ),
+        html.Div(id='sleep_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
+        html.Div(style={"height": '40px'}),
         html.Div(className="hidden-print", style={'margin': 'auto', 'text-align': 'center'}, children=[
         dash_dangerously_set_inner_html.DangerouslySetInnerHTML( '''
         <form action="https://www.paypal.com/donate" method="post" target="_top">
@@ -128,6 +138,9 @@ app.layout = html.Div(children=[
         html.Div(style={"height": '25px'}),
     ]),
 ])
+
+def format_minutes(minutes):
+    return "%2dh %02dm" % (divmod(minutes, 60))
 
 def calculate_table_data(df, measurement_name):
     df = df.sort_values(by='Date', ascending=False)
@@ -153,10 +166,14 @@ def calculate_table_data(df, measurement_name):
                 min_hr = period_data[measurement_name].min()
             average_hr = round(period_data[measurement_name].mean(),2)
             
-            # Add the average to the result DataFrame
-            result_data['Average ' + measurement_name].append(average_hr)
-            result_data['Max ' + measurement_name].append(max_hr)
-            result_data['Min ' + measurement_name].append(min_hr)
+            if measurement_name == "Total Sleep Minutes":
+                result_data['Average ' + measurement_name].append(format_minutes(average_hr))
+                result_data['Max ' + measurement_name].append(format_minutes(max_hr))
+                result_data['Min ' + measurement_name].append(format_minutes(min_hr))
+            else:
+                result_data['Average ' + measurement_name].append(average_hr)
+                result_data['Max ' + measurement_name].append(max_hr)
+                result_data['Min ' + measurement_name].append(min_hr)
         else:
             result_data['Average ' + measurement_name].append(pd.NA)
             result_data['Max ' + measurement_name].append(pd.NA)
@@ -179,7 +196,7 @@ def disable_button_and_calculate(n_clicks):
     return True, True, True
 
 # fetch data and update graphs on click of submit
-@app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output("loading-output-1", "children"),
+@app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('sleep_table', 'children'), Output("loading-output-1", "children"),
 Input('submit-button', 'disabled'),
 State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),
 prevent_initial_call=True)
@@ -205,13 +222,15 @@ def update_output(n_clicks, value, start_date, end_date):
     days_name_list = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday')
     report_title = "Wellness Report - " + user_profile["user"]["firstName"] + " " + user_profile["user"]["lastName"]
     report_dates_range = datetime.fromisoformat(start_date).strftime("%d %B, %Y") + " – " + datetime.fromisoformat(end_date).strftime("%d %B, %Y")
-    generated_on_date = "Report Generated :" + datetime.today().date().strftime("%d %B, %Y")
+    generated_on_date = "Report Generated : " + datetime.today().date().strftime("%d %B, %Y")
     dates_list = []
     dates_str_list = []
     rhr_list = []
     steps_list = []
     weight_list = []
     spo2_list = []
+    sleep_record_dict = {}
+    deep_sleep_list, light_sleep_list, rem_sleep_list, awake_list, total_sleep_list = [],[],[],[],[]
     fat_burn_minutes_list, cardio_minutes_list, peak_minutes_list = [], [], []
 
     for entry in response_heartrate['activities-heart']:
@@ -241,6 +260,40 @@ def update_output(n_clicks, value, start_date, end_date):
         spo2_list.append(entry["value"]["avg"])
     spo2_list += [None]*(len(dates_str_list)-len(spo2_list))
 
+    for i in range(0,len(dates_str_list),100):
+        end_index = i+100
+        if i+100 > len(dates_str_list):
+            end_index = len(dates_str_list)
+        temp_start_date = dates_str_list[i]
+        temp_end_date = dates_str_list[end_index-1]
+
+        response_sleep = requests.get("https://api.fitbit.com/1.2/user/-/sleep/date/"+ temp_start_date +"/"+ temp_end_date +".json", headers=headers).json()
+
+        for sleep_record in response_sleep["sleep"][::-1]:
+            if sleep_record['isMainSleep']:
+                try:
+                    sleep_record_dict[sleep_record['dateOfSleep']] = {'deep': sleep_record['levels']['summary']['deep']['minutes'],
+                                                                    'light': sleep_record['levels']['summary']['light']['minutes'],
+                                                                    'rem': sleep_record['levels']['summary']['rem']['minutes'],
+                                                                    'wake': sleep_record['levels']['summary']['wake']['minutes'],
+                                                                    'total_sleep': sleep_record["minutesAsleep"]}
+                except KeyError as E:
+                    pass
+
+    for day in dates_str_list:
+        if day in sleep_record_dict:
+            deep_sleep_list.append(sleep_record_dict[day]['deep'])
+            light_sleep_list.append(sleep_record_dict[day]['light'])
+            rem_sleep_list.append(sleep_record_dict[day]['rem'])
+            awake_list.append(sleep_record_dict[day]['wake'])
+            total_sleep_list.append(sleep_record_dict[day]['total_sleep'])
+        else:
+            deep_sleep_list.append(None)
+            light_sleep_list.append(None)
+            rem_sleep_list.append(None)
+            awake_list.append(None)
+            total_sleep_list.append(None)
+
     df_merged = pd.DataFrame({
     "Date": dates_list,
     "Resting Heart Rate": rhr_list,
@@ -249,7 +302,12 @@ def update_output(n_clicks, value, start_date, end_date):
     "Cardio Minutes": cardio_minutes_list,
     "Peak Minutes": peak_minutes_list,
     "weight": weight_list,
-    "SPO2": spo2_list
+    "SPO2": spo2_list,
+    "Deep Sleep Minutes": deep_sleep_list,
+    "Light Sleep Minutes": light_sleep_list,
+    "REM Sleep Minutes": rem_sleep_list,
+    "Awake Minutes": awake_list,
+    "Total Sleep Minutes": total_sleep_list
     })
 
     non_zero_steps_df = df_merged[df_merged["Steps Count"] != 0]
@@ -258,6 +316,7 @@ def update_output(n_clicks, value, start_date, end_date):
     steps_avg = {'overall': int(df_merged["Steps Count"].mean()), '30d': int(df_merged.sort_values(by='Date', ascending=False)["Steps Count"].head(31).mean())}
     weight_avg = {'overall': round(df_merged["weight"].mean(),1), '30d': round(df_merged["weight"].tail(30).mean(),1)}
     spo2_avg = {'overall': round(df_merged["SPO2"].mean(),1), '30d': round(df_merged["SPO2"].tail(30).mean(),1)}
+    sleep_avg = {'overall': round(df_merged["Total Sleep Minutes"].mean(),1), '30d': round(df_merged["Total Sleep Minutes"].tail(30).mean(),1)}
     active_mins_avg = {'overall': round(df_merged["Total Active Minutes"].mean(),2), '30d': round(df_merged["Total Active Minutes"].tail(30).mean(),2)}
     weekly_steps_array = np.array([0]*days_name_list.index(datetime.fromisoformat(start_date).strftime('%A')) + df_merged["Steps Count"].to_list() + [0]*(6 - days_name_list.index(datetime.fromisoformat(end_date).strftime('%A'))))
     weekly_steps_array = np.transpose(weekly_steps_array.reshape((int(len(weekly_steps_array)/7), 7)))
@@ -268,14 +327,14 @@ def update_output(n_clicks, value, start_date, end_date):
     fig_rhr = px.line(df_merged, x="Date", y="Resting Heart Rate", line_shape="spline", color_discrete_sequence=["#d30f1c"], title=f"<b>Daily Resting Heart Rate<br><br><sup>Overall average : {rhr_avg['overall']} bpm | Last 30d average : {rhr_avg['30d']} bpm</sup></b><br><br><br>")
     fig_rhr.add_annotation(x=df_merged.iloc[df_merged["Resting Heart Rate"].idxmax()]["Date"], y=df_merged["Resting Heart Rate"].max(), text=str(df_merged["Resting Heart Rate"].max()), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_rhr.add_annotation(x=df_merged.iloc[df_merged["Resting Heart Rate"].idxmin()]["Date"], y=df_merged["Resting Heart Rate"].min(), text=str(df_merged["Resting Heart Rate"].min()), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
-    fig_rhr.add_hline(y=df_merged["Resting Heart Rate"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Resting Heart Rate"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_rhr.add_hline(y=df_merged["Resting Heart Rate"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Resting Heart Rate"].mean(), 1)) + " BPM", annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     fig_rhr.add_hrect(y0=62, y1=68, fillcolor="green", opacity=0.15, line_width=0)
     rhr_summary_df = calculate_table_data(df_merged, "Resting Heart Rate")
     rhr_summary_table = dash_table.DataTable(rhr_summary_df.to_dict('records'), [{"name": i, "id": i} for i in rhr_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#5f040a','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
     fig_steps = px.bar(df_merged, x="Date", y="Steps Count", color_discrete_sequence=["#2fb376"], title=f"<b>Daily Steps Count<br><br><sup>Overall average : {steps_avg['overall']} steps | Last 30d average : {steps_avg['30d']} steps</sup></b><br><br><br>")
     fig_steps.add_annotation(x=df_merged.iloc[df_merged["Steps Count"].idxmax()]["Date"], y=df_merged["Steps Count"].max(), text=str(df_merged["Steps Count"].max())+" steps", showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_steps.add_annotation(x=non_zero_steps_df.iloc[non_zero_steps_df["Steps Count"].idxmin()]["Date"], y=non_zero_steps_df["Steps Count"].min(), text=str(non_zero_steps_df["Steps Count"].min())+" steps", showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
-    fig_steps.add_hline(y=non_zero_steps_df["Steps Count"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Steps Count"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.8, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_steps.add_hline(y=non_zero_steps_df["Steps Count"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Steps Count"].mean(), 1)) + " Steps", annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.8, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     fig_steps_heatmap = px.imshow(weekly_steps_array, color_continuous_scale='YLGn', origin='lower', title="<b>Weekly Steps Heatmap</b>", labels={'x':"Week Number", 'y': "Day of the Week"}, height=350, aspect='equal')
     fig_steps_heatmap.update_traces(colorbar_orientation='h', selector=dict(type='heatmap'))
     steps_summary_df = calculate_table_data(df_merged, "Steps Count")
@@ -291,19 +350,25 @@ def update_output(n_clicks, value, start_date, end_date):
     fig_weight = px.line(df_merged, x="Date", y="weight", line_shape="spline", color_discrete_sequence=["#6b3908"], title=f"<b>Weight<br><br><sup>Overall average : {weight_avg['overall']} Unit | Last 30d average : {weight_avg['30d']} Unit</sup></b><br><br><br>")
     fig_weight.add_annotation(x=df_merged.iloc[df_merged["weight"].idxmax()]["Date"], y=df_merged["weight"].max(), text=str(df_merged["weight"].max()), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_weight.add_annotation(x=df_merged.iloc[df_merged["weight"].idxmin()]["Date"], y=df_merged["weight"].min(), text=str(df_merged["weight"].min()), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
-    fig_weight.add_hline(y=round(df_merged["weight"].mean(),1), line_dash="dot",annotation_text="Average : " + str(round(df_merged["weight"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_weight.add_hline(y=round(df_merged["weight"].mean(),1), line_dash="dot",annotation_text="Average : " + str(round(df_merged["weight"].mean(), 1)) + " Units", annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     weight_summary_df = calculate_table_data(df_merged, "weight")
     weight_summary_table = dash_table.DataTable(weight_summary_df.to_dict('records'), [{"name": i, "id": i} for i in weight_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#4c3b7d','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
     fig_spo2 = px.scatter(df_merged, x="Date", y="SPO2", color_discrete_sequence=["#983faa"], title=f"<b>SPO2 Percentage<br><br><sup>Overall average : {spo2_avg['overall']}% | Last 30d average : {spo2_avg['30d']}% </sup></b><br><br><br>", range_y=(90,100))
     fig_spo2.add_annotation(x=df_merged.iloc[df_merged["SPO2"].idxmax()]["Date"], y=df_merged["SPO2"].max(), text=str(df_merged["SPO2"].max())+"%", showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_spo2.add_annotation(x=df_merged.iloc[df_merged["SPO2"].idxmin()]["Date"], y=df_merged["SPO2"].min(), text=str(df_merged["SPO2"].min())+"%", showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
-    fig_spo2.add_hline(y=df_merged["SPO2"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["SPO2"].mean(), 1)), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_spo2.add_hline(y=df_merged["SPO2"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["SPO2"].mean(), 1)) + "%", annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     fig_spo2.update_traces(marker_size=6)
     spo2_summary_df = calculate_table_data(df_merged, "SPO2")
     spo2_summary_table = dash_table.DataTable(spo2_summary_df.to_dict('records'), [{"name": i, "id": i} for i in spo2_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#8d3a18','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
-
+    fig_sleep_minutes = px.bar(df_merged, x="Date", y=["Deep Sleep Minutes", "Light Sleep Minutes", "REM Sleep Minutes", "Awake Minutes"], title=f"<b>Sleep Stages<br><br><sup>Overall average : {format_minutes(int(sleep_avg['overall']))} | Last 30d average : {format_minutes(int(sleep_avg['30d']))}</sup></b><br><br>", color_discrete_map={"Deep Sleep Minutes": '#110d7f', "Light Sleep Minutes": '#8baff4', "REM Sleep Minutes": '#fabf76', "Awake Minutes": '#bd1120',})
+    fig_sleep_minutes.update_layout(yaxis_title='Sleep Minutes', legend=dict(orientation="h",yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''))
+    fig_sleep_minutes.add_annotation(x=df_merged.iloc[df_merged["Total Sleep Minutes"].idxmax()]["Date"], y=df_merged["Total Sleep Minutes"].max(), text=str(format_minutes(df_merged["Total Sleep Minutes"].max())), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_sleep_minutes.add_annotation(x=df_merged.iloc[df_merged["Total Sleep Minutes"].idxmin()]["Date"], y=df_merged["Total Sleep Minutes"].min(), text=str(format_minutes(df_merged["Total Sleep Minutes"].min())), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_sleep_minutes.add_hline(y=df_merged["Total Sleep Minutes"].mean(), line_dash="dot",annotation_text="Average : " + str(format_minutes(int(df_merged["Total Sleep Minutes"].mean()))), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    sleep_summary_df = calculate_table_data(df_merged, "Total Sleep Minutes")
+    sleep_summary_table = dash_table.DataTable(sleep_summary_df.to_dict('records'), [{"name": i, "id": i} for i in sleep_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#636efa','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
     
-    return report_title, report_dates_range, generated_on_date, fig_rhr, rhr_summary_table, fig_steps, fig_steps_heatmap, steps_summary_table, fig_activity_minutes, fat_burn_summary_table, cardio_summary_table, peak_summary_table, fig_weight, weight_summary_table, fig_spo2, spo2_summary_table, ""
+    return report_title, report_dates_range, generated_on_date, fig_rhr, rhr_summary_table, fig_steps, fig_steps_heatmap, steps_summary_table, fig_activity_minutes, fat_burn_summary_table, cardio_summary_table, peak_summary_table, fig_weight, weight_summary_table, fig_spo2, spo2_summary_table, fig_sleep_minutes, sleep_summary_table, ""
 
 if __name__ == '__main__':
     app.run_server(debug=True)
