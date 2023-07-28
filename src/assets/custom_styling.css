@@ -429,4 +429,14 @@ there.
   .hidden-print {
     display: none !important;
   }
+  body {
+    zoom: 80%;
+  }
+  table {
+    page-break-inside: avoid;
+  }
+  @page {
+    size: A4;
+    margin: auto;
+  }
 }
