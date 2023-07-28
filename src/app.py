@@ -250,7 +250,10 @@ def update_output(n_clicks, value, start_date, end_date):
             rhr_list.append(None)
     
     for entry in response_steps['activities-steps']:
-        steps_list.append(int(entry['value']))
+        if int(entry['value']) == 0:
+            steps_list.append(None)
+        else:
+            steps_list.append(int(entry['value']))
 
     for entry in response_weight["body-weight"]:
         weight_list.append(float(entry['value']))
@@ -309,8 +312,7 @@ def update_output(n_clicks, value, start_date, end_date):
     "Awake Minutes": awake_list,
     "Total Sleep Minutes": total_sleep_list
     })
-
-    non_zero_steps_df = df_merged[df_merged["Steps Count"] != 0]
+    
     df_merged["Total Active Minutes"] = df_merged["Fat Burn Minutes"] + df_merged["Cardio Minutes"] + df_merged["Peak Minutes"]
     rhr_avg = {'overall': round(df_merged["Resting Heart Rate"].mean(),1), '30d': round(df_merged["Resting Heart Rate"].tail(30).mean(),1)}
     steps_avg = {'overall': int(df_merged["Steps Count"].mean()), '30d': int(df_merged.sort_values(by='Date', ascending=False)["Steps Count"].head(31).mean())}
@@ -333,8 +335,8 @@ def update_output(n_clicks, value, start_date, end_date):
     rhr_summary_table = dash_table.DataTable(rhr_summary_df.to_dict('records'), [{"name": i, "id": i} for i in rhr_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#5f040a','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
     fig_steps = px.bar(df_merged, x="Date", y="Steps Count", color_discrete_sequence=["#2fb376"], title=f"<b>Daily Steps Count<br><br><sup>Overall average : {steps_avg['overall']} steps | Last 30d average : {steps_avg['30d']} steps</sup></b><br><br><br>")
     fig_steps.add_annotation(x=df_merged.iloc[df_merged["Steps Count"].idxmax()]["Date"], y=df_merged["Steps Count"].max(), text=str(df_merged["Steps Count"].max())+" steps", showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
-    fig_steps.add_annotation(x=non_zero_steps_df.iloc[non_zero_steps_df["Steps Count"].idxmin()]["Date"], y=non_zero_steps_df["Steps Count"].min(), text=str(non_zero_steps_df["Steps Count"].min())+" steps", showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
-    fig_steps.add_hline(y=non_zero_steps_df["Steps Count"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Steps Count"].mean(), 1)) + " Steps", annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.8, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_steps.add_annotation(x=df_merged.iloc[df_merged["Steps Count"].idxmin()]["Date"], y=df_merged["Steps Count"].min(), text=str(df_merged["Steps Count"].min())+" steps", showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
+    fig_steps.add_hline(y=df_merged["Steps Count"].mean(), line_dash="dot",annotation_text="Average : " + str(round(df_merged["Steps Count"].mean(), 1)) + " Steps", annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.8, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
     fig_steps_heatmap = px.imshow(weekly_steps_array, color_continuous_scale='YLGn', origin='lower', title="<b>Weekly Steps Heatmap</b>", labels={'x':"Week Number", 'y': "Day of the Week"}, height=350, aspect='equal')
     fig_steps_heatmap.update_traces(colorbar_orientation='h', selector=dict(type='heatmap'))
     steps_summary_df = calculate_table_data(df_merged, "Steps Count")
