@@ -45,7 +45,7 @@ app.layout = html.Div(children=[
     ]),
     html.Div(id="instruction-area", className="hidden-print", style={'margin-top':'30px', 'margin-right':'auto', 'margin-left':'auto','text-align':'center'}, children=[
         html.P( "Allowed Date Range : Minimum 40 days — Maximum 365 days", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
-        html.A("HOW TO GET ACCESS TOKEN?", href='https://github.com/arpanghosh8453/fitbit-web-ui-app/blob/main/help/GET_ACCESS_TOKEN.pdf', target="_blank", style={'text-decoration': 'none'})
+        html.A("HOW TO GET ACCESS TOKEN?", href='https://github.com/arpanghosh8453/fitbit-web-ui-app/blob/main/help/GET_ACCESS_TOKEN.md', target="_blank", style={'text-decoration': 'none'})
         ]),
     html.Div(id='loading-div', style={'margin-top': '40px'}, children=[
     dcc.Loading(
