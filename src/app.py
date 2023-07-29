@@ -69,7 +69,7 @@ app.layout = html.Div(children=[
             html.P(id="generated-on-title", style={'font-weight': 'bold', 'font-size': '16'})
         ]),
         html.Div(style={"height": '40px'}),
-        html.H4("Resting Heart Rate", style={'font-weight': 'bold'}),
+        html.H4("Resting Heart Rate 💖", style={'font-weight': 'bold'}),
         html.H6("Resting heart rate (RHR) is derived from a person's average sleeping heart rate. Fitbit tracks heart rate with photoplethysmography. This technique uses sensors and green light to detect blood volume when the heart beats. If a Fitbit device isn't worn during sleep, RHR is derived from daytime sedentary heart rate. According to the American Heart Association, a normal RHR is between 60-100 beats per minute (bpm), but this can vary based upon your age or fitness level."),
         dcc.Graph(
             id='graph_RHR',
@@ -78,7 +78,7 @@ app.layout = html.Div(children=[
         ),
         html.Div(id='RHR_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
-        html.H4("Steps Count", style={'font-weight': 'bold'}),
+        html.H4("Steps Count 👣", style={'font-weight': 'bold'}),
         html.H6("Fitbit devices use an accelerometer to track steps. Some devices track active minutes, which includes activities over 3 metabolic equivalents (METs), such as brisk walking and cardio workouts."),
         dcc.Graph(
             id='graph_steps',
@@ -92,7 +92,7 @@ app.layout = html.Div(children=[
         ),
         html.Div(id='steps_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
-        html.H4("Activity", style={'font-weight': 'bold'}),
+        html.H4("Activity 🏃‍♂️", style={'font-weight': 'bold'}),
         html.H6("Heart Rate Zones (fat burn, cardio and peak) are based on a percentage of maximum heart rate. Maximum heart rate is calculated as 220 minus age. The Centers for Disease Control recommends that adults do at least 150-300 minutes of moderate-intensity aerobic activity each week or 75-150 minutes of vigorous-intensity aerobic activity each week."),
         dcc.Graph(
             id='graph_activity_minutes',
@@ -103,7 +103,7 @@ app.layout = html.Div(children=[
         html.Div(id='cardio_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(id='peak_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
-        html.H4("Weight Log", style={'font-weight': 'bold'}),
+        html.H4("Weight Log ⏲️", style={'font-weight': 'bold'}),
         html.H6("Fitbit connects with the Aria family of smart scales to track weight. Weight may also be self-reported using the Fitbit app. Studies suggest that regular weigh-ins may help people who want to lose weight."),
         dcc.Graph(
             id='graph_weight',
@@ -112,7 +112,7 @@ app.layout = html.Div(children=[
         ),
         html.Div(id='weight_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
-        html.H4("SpO2", style={'font-weight': 'bold'}),
+        html.H4("SpO2 🩸", style={'font-weight': 'bold'}),
         html.H6("A pulse oximeter reading indicates what percentage of your blood is saturated, known as the SpO2 level. A typical, healthy reading is 95–100% . If your SpO2 level is less than 92%, a doctor may recommend you get an ABG. A pulse ox is the most common type of test because it's noninvasive and provides quick readings."),
         dcc.Graph(
             id='graph_spo2',
@@ -121,7 +121,7 @@ app.layout = html.Div(children=[
         ),
         html.Div(id='spo2_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
-        html.H4("Sleep", style={'font-weight': 'bold'}),
+        html.H4("Sleep 💤", style={'font-weight': 'bold'}),
         html.H6("Fitbit estimates sleep stages (awake, REM, light sleep and deep sleep) and sleep duration based on a person's movement and heart-rate patterns. The National Sleep Foundation recommends 7-9 hours of sleep per night for adults"),
         dcc.Graph(
             id='graph_sleep',
@@ -374,7 +374,7 @@ def update_output(n_clicks, value, start_date, end_date):
     fig_spo2.update_traces(marker_size=6)
     spo2_summary_df = calculate_table_data(df_merged, "SPO2")
     spo2_summary_table = dash_table.DataTable(spo2_summary_df.to_dict('records'), [{"name": i, "id": i} for i in spo2_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#8d3a18','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
-    fig_sleep_minutes = px.bar(df_merged, x="Date", y=["Deep Sleep Minutes", "Light Sleep Minutes", "REM Sleep Minutes", "Awake Minutes"], title=f"<b>Sleep Stages<br><br><sup>Overall average : {format_minutes(int(sleep_avg['overall']))} | Last 30d average : {format_minutes(int(sleep_avg['30d']))}</sup></b><br><br>", color_discrete_map={"Deep Sleep Minutes": '#110d7f', "Light Sleep Minutes": '#8baff4', "REM Sleep Minutes": '#fabf76', "Awake Minutes": '#bd1120',}, height=500)
+    fig_sleep_minutes = px.bar(df_merged, x="Date", y=["Deep Sleep Minutes", "Light Sleep Minutes", "REM Sleep Minutes", "Awake Minutes"], title=f"<b>Sleep Stages<br><br><sup>Overall average : {format_minutes(int(sleep_avg['overall']))} | Last 30d average : {format_minutes(int(sleep_avg['30d']))}</sup></b><br><br>", color_discrete_map={"Deep Sleep Minutes": '#084466', "Light Sleep Minutes": '#1e9ad6', "REM Sleep Minutes": '#4cc5da', "Awake Minutes": '#fd7676',}, height=500)
     fig_sleep_minutes.update_layout(yaxis_title='Sleep Minutes', legend=dict(orientation="h",yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''))
     fig_sleep_minutes.add_annotation(x=df_merged.iloc[df_merged["Total Sleep Minutes"].idxmax()]["Date"], y=df_merged["Total Sleep Minutes"].max(), text=str(format_minutes(df_merged["Total Sleep Minutes"].max())), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_sleep_minutes.add_annotation(x=df_merged.iloc[df_merged["Total Sleep Minutes"].idxmin()]["Date"], y=df_merged["Total Sleep Minutes"].min(), text=str(format_minutes(df_merged["Total Sleep Minutes"].min())), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
