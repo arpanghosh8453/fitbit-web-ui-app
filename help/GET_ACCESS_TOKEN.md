@@ -25,7 +25,7 @@
     
 2.  Login if you are not logged in the current browser session
     
-3.  Open [this page](https://dev.fitbit.com/build/reference/web-api/explore/) and click on the green Authorize button, select all and hit “Authorize” button below the dialog box, then hit close
+3.  Open [this page](https://dev.fitbit.com/build/reference/web-api/explore/) and click on the green Authorize button, click select all to select all the checkbox options and hit “Authorize” button below the dialog box. Then you will see another dialog appear with logout and close button. Now you should hit close
 
 ![](https://lh5.googleusercontent.com/AZgvAQXZIV7K7kOwZOU0GqujkVoIaDjSy7OwtiK_DCeSciPQUF7scf9lZpJhKx1CKz0E9CHCKfYD-wtjU24EVUtFQIpUj6ZpZMSogBtPu_cDde015aDkUilrnx05cTRbT9yBPuq6N_6iCmUBHOekamI)
  
