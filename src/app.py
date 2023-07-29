@@ -123,6 +123,7 @@ app.layout = html.Div(children=[
         html.Div(style={"height": '40px'}),
         html.H4("Sleep 💤", style={'font-weight': 'bold'}),
         html.H6("Fitbit estimates sleep stages (awake, REM, light sleep and deep sleep) and sleep duration based on a person's movement and heart-rate patterns. The National Sleep Foundation recommends 7-9 hours of sleep per night for adults"),
+        dcc.Checklist(options=[{'label': 'Color Code Sleep Stages', 'value': 'Color Code Sleep Stages','disabled':True}], value=['Color Code Sleep Stages'], style={'margin-left':'30px'}, inline=True, id="sleep-stage-checkbox"),
         dcc.Graph(
             id='graph_sleep',
             figure=px.bar(),
@@ -184,6 +185,21 @@ def calculate_table_data(df, measurement_name):
     
     return pd.DataFrame(result_data)
 
+#Sleep stages checkbox functionality
+@app.callback(Output('graph_sleep', 'figure', allow_duplicate=True), Input('sleep-stage-checkbox', 'value'), State('graph_sleep', 'figure'), prevent_initial_call=True)
+def update_sleep_colors(value, fig):
+    if len(value) == 1:
+        fig['data'][0]['marker']['color'] = '#084466'
+        fig['data'][1]['marker']['color'] = '#1e9ad6'
+        fig['data'][2]['marker']['color'] = '#4cc5da'
+        fig['data'][3]['marker']['color'] = '#fd7676'
+    else:
+        fig['data'][0]['marker']['color'] = '#084466'
+        fig['data'][1]['marker']['color'] = '#084466'
+        fig['data'][2]['marker']['color'] = '#084466'
+        fig['data'][3]['marker']['color'] = '#084466'
+    return fig
+
 # Limits the date range to one year max
 @app.callback(Output('my-date-picker-range', 'max_date_allowed'), Output('my-date-picker-range', 'end_date'),
              [Input('my-date-picker-range', 'start_date')])
@@ -208,7 +224,7 @@ def disable_button_and_calculate(n_clicks, value):
     return False, True, True, True
 
 # fetch data and update graphs on click of submit
-@app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('sleep_table', 'children'), Output("loading-output-1", "children"),
+@app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('sleep_table', 'children'), Output('sleep-stage-checkbox', 'options'), Output("loading-output-1", "children"),
 Input('submit-button', 'disabled'),
 State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),
 prevent_initial_call=True)
@@ -387,7 +403,7 @@ def update_output(n_clicks, value, start_date, end_date):
     sleep_summary_df = calculate_table_data(df_merged, "Total Sleep Minutes")
     sleep_summary_table = dash_table.DataTable(sleep_summary_df.to_dict('records'), [{"name": i, "id": i} for i in sleep_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#636efa','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
     
-    return report_title, report_dates_range, generated_on_date, fig_rhr, rhr_summary_table, fig_steps, fig_steps_heatmap, steps_summary_table, fig_activity_minutes, fat_burn_summary_table, cardio_summary_table, peak_summary_table, fig_weight, weight_summary_table, fig_spo2, spo2_summary_table, fig_sleep_minutes, sleep_summary_table, ""
+    return report_title, report_dates_range, generated_on_date, fig_rhr, rhr_summary_table, fig_steps, fig_steps_heatmap, steps_summary_table, fig_activity_minutes, fat_burn_summary_table, cardio_summary_table, peak_summary_table, fig_weight, weight_summary_table, fig_spo2, spo2_summary_table, fig_sleep_minutes, sleep_summary_table, [{'label': 'Color Code Sleep Stages', 'value': 'Color Code Sleep Stages','disabled': False}], ""
 
 if __name__ == '__main__':
     app.run_server(debug=True)
