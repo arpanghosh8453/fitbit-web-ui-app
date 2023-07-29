@@ -129,6 +129,11 @@ app.layout = html.Div(children=[
             figure=px.bar(),
             config= {'displaylogo': False}
         ),
+        dcc.Graph(
+            id='graph_sleep_regularity',
+            figure=px.bar(),
+            config= {'displaylogo': False}
+        ),
         html.Div(id='sleep_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
         html.Div(className="hidden-print", style={'margin': 'auto', 'text-align': 'center'}, children=[
@@ -142,6 +147,20 @@ app.layout = html.Div(children=[
         html.Div(style={"height": '25px'}),
     ]),
 ])
+
+def seconds_to_tick_label(seconds):
+    # Calculate the number of hours, minutes, and remaining seconds
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    mult, remainder = divmod(hours, 12)
+    if mult >=2:
+        hours = hours - (12*mult)
+    result_datetime = datetime(1, 1, 1, hour=hours, minute=minutes, second=seconds)
+    if result_datetime.hour >= 12:
+        result_datetime = result_datetime - timedelta(hours=12)
+    else:
+        result_datetime = result_datetime + timedelta(hours=12)
+    return result_datetime.strftime("%H:%M")
 
 def format_minutes(minutes):
     return "%2dh %02dm" % (divmod(minutes, 60))
@@ -224,7 +243,7 @@ def disable_button_and_calculate(n_clicks, value):
     return False, True, True, True
 
 # fetch data and update graphs on click of submit
-@app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('sleep_table', 'children'), Output('sleep-stage-checkbox', 'options'), Output("loading-output-1", "children"),
+@app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('graph_sleep_regularity', 'figure'), Output('sleep_table', 'children'), Output('sleep-stage-checkbox', 'options'), Output("loading-output-1", "children"),
 Input('submit-button', 'disabled'),
 State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),
 prevent_initial_call=True)
@@ -258,7 +277,7 @@ def update_output(n_clicks, value, start_date, end_date):
     weight_list = []
     spo2_list = []
     sleep_record_dict = {}
-    deep_sleep_list, light_sleep_list, rem_sleep_list, awake_list, total_sleep_list = [],[],[],[],[]
+    deep_sleep_list, light_sleep_list, rem_sleep_list, awake_list, total_sleep_list, sleep_start_times_list = [],[],[],[],[],[]
     fat_burn_minutes_list, cardio_minutes_list, peak_minutes_list = [], [], []
 
     for entry in response_heartrate['activities-heart']:
@@ -303,11 +322,19 @@ def update_output(n_clicks, value, start_date, end_date):
         for sleep_record in response_sleep["sleep"][::-1]:
             if sleep_record['isMainSleep']:
                 try:
+                    sleep_start_time = datetime.strptime(sleep_record["startTime"], "%Y-%m-%dT%H:%M:%S.%f")
+                    if sleep_start_time.hour < 12:
+                        sleep_start_time = sleep_start_time + timedelta(hours=12)
+                    else:
+                        sleep_start_time = sleep_start_time + timedelta(hours=-12)
+                    sleep_time_of_day = sleep_start_time.time()
                     sleep_record_dict[sleep_record['dateOfSleep']] = {'deep': sleep_record['levels']['summary']['deep']['minutes'],
                                                                     'light': sleep_record['levels']['summary']['light']['minutes'],
                                                                     'rem': sleep_record['levels']['summary']['rem']['minutes'],
                                                                     'wake': sleep_record['levels']['summary']['wake']['minutes'],
-                                                                    'total_sleep': sleep_record["minutesAsleep"]}
+                                                                    'total_sleep': sleep_record["minutesAsleep"],
+                                                                    'start_time_seconds': (sleep_time_of_day.hour * 3600) + (sleep_time_of_day.minute * 60) + sleep_time_of_day.second
+                                                                    }
                 except KeyError as E:
                     pass
 
@@ -318,12 +345,14 @@ def update_output(n_clicks, value, start_date, end_date):
             rem_sleep_list.append(sleep_record_dict[day]['rem'])
             awake_list.append(sleep_record_dict[day]['wake'])
             total_sleep_list.append(sleep_record_dict[day]['total_sleep'])
+            sleep_start_times_list.append(sleep_record_dict[day]['start_time_seconds'])
         else:
             deep_sleep_list.append(None)
             light_sleep_list.append(None)
             rem_sleep_list.append(None)
             awake_list.append(None)
             total_sleep_list.append(None)
+            sleep_start_times_list.append(None)
 
     df_merged = pd.DataFrame({
     "Date": dates_list,
@@ -338,12 +367,15 @@ def update_output(n_clicks, value, start_date, end_date):
     "Light Sleep Minutes": light_sleep_list,
     "REM Sleep Minutes": rem_sleep_list,
     "Awake Minutes": awake_list,
-    "Total Sleep Minutes": total_sleep_list
+    "Total Sleep Minutes": total_sleep_list,
+    "Sleep Start Time Seconds": sleep_start_times_list
     })
     
+    df_merged['Total Sleep Seconds'] = df_merged['Total Sleep Minutes']*60
+    df_merged["Sleep End Time Seconds"] = df_merged["Sleep Start Time Seconds"] + df_merged['Total Sleep Seconds']
     df_merged["Total Active Minutes"] = df_merged["Fat Burn Minutes"] + df_merged["Cardio Minutes"] + df_merged["Peak Minutes"]
     rhr_avg = {'overall': round(df_merged["Resting Heart Rate"].mean(),1), '30d': round(df_merged["Resting Heart Rate"].tail(30).mean(),1)}
-    steps_avg = {'overall': int(df_merged["Steps Count"].mean()), '30d': int(df_merged.sort_values(by='Date', ascending=False)["Steps Count"].head(31).mean())}
+    steps_avg = {'overall': int(df_merged["Steps Count"].mean()), '30d': int(df_merged["Steps Count"].tail(31).mean())}
     weight_avg = {'overall': round(df_merged["weight"].mean(),1), '30d': round(df_merged["weight"].tail(30).mean(),1)}
     spo2_avg = {'overall': round(df_merged["SPO2"].mean(),1), '30d': round(df_merged["SPO2"].tail(30).mean(),1)}
     sleep_avg = {'overall': round(df_merged["Total Sleep Minutes"].mean(),1), '30d': round(df_merged["Total Sleep Minutes"].tail(30).mean(),1)}
@@ -395,15 +427,14 @@ def update_output(n_clicks, value, start_date, end_date):
     fig_sleep_minutes.add_annotation(x=df_merged.iloc[df_merged["Total Sleep Minutes"].idxmax()]["Date"], y=df_merged["Total Sleep Minutes"].max(), text=str(format_minutes(df_merged["Total Sleep Minutes"].max())), showarrow=False, arrowhead=0, bgcolor="#5f040a", opacity=0.80, yshift=15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_sleep_minutes.add_annotation(x=df_merged.iloc[df_merged["Total Sleep Minutes"].idxmin()]["Date"], y=df_merged["Total Sleep Minutes"].min(), text=str(format_minutes(df_merged["Total Sleep Minutes"].min())), showarrow=False, arrowhead=0, bgcolor="#0b2d51", opacity=0.80, yshift=-15, borderpad=5, font=dict(family="Helvetica, monospace", size=12, color="#ffffff"), )
     fig_sleep_minutes.add_hline(y=df_merged["Total Sleep Minutes"].mean(), line_dash="dot",annotation_text="Average : " + str(format_minutes(int(df_merged["Total Sleep Minutes"].mean()))), annotation_position="bottom right", annotation_bgcolor="#6b3908", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
-    fig_sleep_minutes.update_xaxes(
-    rangeslider_visible=True,
-    range=[dates_str_list[-30], dates_str_list[-1]],
-    rangeslider_range=[dates_str_list[0], dates_str_list[-1]]
-)
+    fig_sleep_minutes.update_xaxes(rangeslider_visible=True,range=[dates_str_list[-30], dates_str_list[-1]],rangeslider_range=[dates_str_list[0], dates_str_list[-1]])
     sleep_summary_df = calculate_table_data(df_merged, "Total Sleep Minutes")
     sleep_summary_table = dash_table.DataTable(sleep_summary_df.to_dict('records'), [{"name": i, "id": i} for i in sleep_summary_df.columns], style_data_conditional=[{'if': {'row_index': 'odd'},'backgroundColor': 'rgb(248, 248, 248)'}], style_header={'backgroundColor': '#636efa','fontWeight': 'bold', 'color': 'white', 'fontSize': '14px'}, style_cell={'textAlign': 'center'})
-    
-    return report_title, report_dates_range, generated_on_date, fig_rhr, rhr_summary_table, fig_steps, fig_steps_heatmap, steps_summary_table, fig_activity_minutes, fat_burn_summary_table, cardio_summary_table, peak_summary_table, fig_weight, weight_summary_table, fig_spo2, spo2_summary_table, fig_sleep_minutes, sleep_summary_table, [{'label': 'Color Code Sleep Stages', 'value': 'Color Code Sleep Stages','disabled': False}], ""
+    fig_sleep_regularity = px.bar(df_merged, x="Date", y="Total Sleep Seconds", base="Sleep Start Time Seconds", title="<b>Sleep Regularity<br><br><sup>The chart time here is always in local time ( Independent of timezone changes )</sup></b>", labels={"Total Sleep Seconds":"Time of Day ( HH:MM )"})
+    fig_sleep_regularity.update_layout(yaxis = dict(tickmode = 'array',tickvals = list(range(0, 120000, 10000)),ticktext = list(map(seconds_to_tick_label, list(range(0, 120000, 10000))))))
+    fig_sleep_regularity.add_hline(y=df_merged["Sleep Start Time Seconds"].mean(), line_dash="dot",annotation_text="Sleep Start Time Trend : "+ str(seconds_to_tick_label(int(df_merged["Sleep Start Time Seconds"].mean()))), annotation_position="bottom right", annotation_bgcolor="#0a3024", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    fig_sleep_regularity.add_hline(y=df_merged["Sleep End Time Seconds"].mean(), line_dash="dot",annotation_text="Sleep End Time Trend : " + str(seconds_to_tick_label(int(df_merged["Sleep End Time Seconds"].mean()))), annotation_position="top left", annotation_bgcolor="#5e060d", annotation_opacity=0.6, annotation_borderpad=5, annotation_font=dict(family="Helvetica, monospace", size=14, color="#ffffff"))
+    return report_title, report_dates_range, generated_on_date, fig_rhr, rhr_summary_table, fig_steps, fig_steps_heatmap, steps_summary_table, fig_activity_minutes, fat_burn_summary_table, cardio_summary_table, peak_summary_table, fig_weight, weight_summary_table, fig_spo2, spo2_summary_table, fig_sleep_minutes, fig_sleep_regularity, sleep_summary_table, [{'label': 'Color Code Sleep Stages', 'value': 'Color Code Sleep Stages','disabled': False}], ""
 
 if __name__ == '__main__':
     app.run_server(debug=True)
