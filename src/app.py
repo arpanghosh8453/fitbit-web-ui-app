@@ -36,15 +36,15 @@ app.layout = html.Div(children=[
         display_format='MMMM DD, Y',
         minimum_nights=40,
         max_date_allowed=datetime.today().date() - timedelta(days=1),
-        min_date_allowed=datetime.today().date() - timedelta(days=1000),
+        min_date_allowed=datetime.today().date() - timedelta(days=3650),
         end_date=datetime.today().date() - timedelta(days=1),
-        start_date=datetime.today().date() - timedelta(days=365)
+        start_date=datetime.today().date() - timedelta(days=720)
         ),
         dcc.Input(id='input-on-submit', value="", placeholder='API ACCESS TOKEN', type='text'),
         html.Button(id='submit-button', type='submit', children='Submit', n_clicks=0, className="button-primary"),
     ]),
     html.Div(id="instruction-area", className="hidden-print", style={'margin-top':'30px', 'margin-right':'auto', 'margin-left':'auto','text-align':'center'}, children=[
-        html.P( "Allowed Date Range : Minimum 40 days — Maximum 365 days", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
+        html.P( "Allowed Date Range : Minimum 40 days — Maximum 10 years!", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
         html.A("HOW TO GET ACCESS TOKEN?", href='https://github.com/arpanghosh8453/fitbit-web-ui-app/blob/main/help/GET_ACCESS_TOKEN.md', target="_blank", style={'text-decoration': 'none'})
         ]),
     html.Div(id='loading-div', style={'margin-top': '40px'}, children=[
@@ -219,15 +219,6 @@ def update_sleep_colors(value, fig):
         fig['data'][3]['marker']['color'] = '#084466'
     return fig
 
-# Limits the date range to one year max
-@app.callback(Output('my-date-picker-range', 'max_date_allowed'), Output('my-date-picker-range', 'end_date'),
-             [Input('my-date-picker-range', 'start_date')])
-def set_max_date_allowed(start_date):
-    start = datetime.strptime(start_date, "%Y-%m-%d")
-    current_date = datetime.today().date() - timedelta(days=1)
-    max_end_date = min((start + timedelta(days=365)).date(), current_date)
-    return max_end_date, max_end_date
-
 # Disables the button after click and starts calculations
 @app.callback(Output('errordialog', 'displayed'), Output('submit-button', 'disabled'), Output('my-date-picker-range', 'disabled'), Output('input-on-submit', 'disabled'), Input('submit-button', 'n_clicks'), State('input-on-submit', 'value'), prevent_initial_call=True)
 def disable_button_and_calculate(n_clicks, value):
@@ -259,10 +250,22 @@ def update_output(n_clicks, value, start_date, end_date):
 
     # Collecting data-----------------------------------------------------------------------------------------------------------------------
     
+    response_heartrate, response_steps, response_weight = [],[],[]
+
     user_profile = requests.get("https://api.fitbit.com/1/user/-/profile.json", headers=headers).json()
-    response_heartrate = requests.get("https://api.fitbit.com/1/user/-/activities/heart/date/"+ start_date +"/"+ end_date +".json", headers=headers).json()
-    response_steps = requests.get("https://api.fitbit.com/1/user/-/activities/steps/date/"+ start_date +"/"+ end_date +".json", headers=headers).json()
-    response_weight = requests.get("https://api.fitbit.com/1/user/-/body/weight/date/"+ start_date +"/"+ end_date +".json", headers=headers).json()
+
+    full_date_list = [(datetime.strptime(start_date, "%Y-%m-%d") + timedelta(days=i)).strftime("%Y-%m-%d") for i in range((datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_date, "%Y-%m-%d")).days + 1)]  
+
+    for i in range(0,len(full_date_list),364):
+        end_index = i+364
+        if i+364 > len(full_date_list):
+            end_index = len(full_date_list)
+        temp_start_date = full_date_list[i]
+        temp_end_date = full_date_list[end_index-1]
+        response_heartrate = response_heartrate + requests.get("https://api.fitbit.com/1/user/-/activities/heart/date/"+ temp_start_date +"/"+ temp_end_date +".json", headers=headers).json()['activities-heart']
+        response_steps = response_steps + requests.get("https://api.fitbit.com/1/user/-/activities/steps/date/"+ temp_start_date +"/"+ temp_end_date +".json", headers=headers).json()['activities-steps']
+        response_weight = response_weight + requests.get("https://api.fitbit.com/1/user/-/body/weight/date/"+ temp_start_date +"/"+ temp_end_date +".json", headers=headers).json()["body-weight"]
+    
     response_spo2 = requests.get("https://api.fitbit.com/1/user/-/spo2/date/"+ start_date +"/"+ end_date +".json", headers=headers).json()
 
     # Processing data-----------------------------------------------------------------------------------------------------------------------
@@ -280,7 +283,7 @@ def update_output(n_clicks, value, start_date, end_date):
     deep_sleep_list, light_sleep_list, rem_sleep_list, awake_list, total_sleep_list, sleep_start_times_list = [],[],[],[],[],[]
     fat_burn_minutes_list, cardio_minutes_list, peak_minutes_list = [], [], []
 
-    for entry in response_heartrate['activities-heart']:
+    for entry in response_heartrate:
         dates_str_list.append(entry['dateTime'])
         dates_list.append(datetime.strptime(entry['dateTime'], '%Y-%m-%d'))
         try:
@@ -296,13 +299,13 @@ def update_output(n_clicks, value, start_date, end_date):
         else:
             rhr_list.append(None)
     
-    for entry in response_steps['activities-steps']:
+    for entry in response_steps:
         if int(entry['value']) == 0:
             steps_list.append(None)
         else:
             steps_list.append(int(entry['value']))
 
-    for entry in response_weight["body-weight"]:
+    for entry in response_weight:
         weight_list.append(float(entry['value']))
     
     for entry in response_spo2:
