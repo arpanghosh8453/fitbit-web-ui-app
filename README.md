@@ -1,6 +1,8 @@
 # Fitbit Wellness Report Web UI
 
-[Live Demo website](https://fitbit-api-web-ui.onrender.com/)
+[Live Demo website](https://fitbit-api-web-ui.onrender.com/) 
+
+[Self Hosted Alternative website](https://fitbit-report.arpanghosh.com/) 
 
 [How to get ACCESS TOKEN](https://github.com/arpanghosh8453/fitbit-web-ui-app/blob/main/help/GET_ACCESS_TOKEN.md)
 
