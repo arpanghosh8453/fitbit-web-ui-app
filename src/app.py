@@ -38,13 +38,13 @@ app.layout = html.Div(children=[
         max_date_allowed=datetime.today().date() - timedelta(days=1),
         min_date_allowed=datetime.today().date() - timedelta(days=3650),
         end_date=datetime.today().date() - timedelta(days=1),
-        start_date=datetime.today().date() - timedelta(days=720)
+        start_date=datetime.today().date() - timedelta(days=360)
         ),
         dcc.Input(id='input-on-submit', value="", placeholder='API ACCESS TOKEN', type='text'),
         html.Button(id='submit-button', type='submit', children='Submit', n_clicks=0, className="button-primary"),
     ]),
     html.Div(id="instruction-area", className="hidden-print", style={'margin-top':'30px', 'margin-right':'auto', 'margin-left':'auto','text-align':'center'}, children=[
-        html.P( "Allowed Date Range : Minimum 40 days — Maximum 10 years!", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
+        html.P( "Allowed Date Range : Minimum 40 days — Maximum 1 year!", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
         html.A("HOW TO GET ACCESS TOKEN?", href='https://github.com/arpanghosh8453/fitbit-web-ui-app/blob/main/help/GET_ACCESS_TOKEN.md', target="_blank", style={'text-decoration': 'none'})
         ]),
     html.Div(id='loading-div', style={'margin-top': '40px'}, children=[
