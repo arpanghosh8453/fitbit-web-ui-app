@@ -1,4 +1,8 @@
 # %%
+import os
+import base64
+import logging
+import requests
 import dash, requests
 from dash import dcc
 from dash import html, dash_table
@@ -8,9 +12,16 @@ import numpy as np
 import plotly.express as px
 from datetime import datetime, timedelta
 import dash_dangerously_set_inner_html
+from urllib.parse import parse_qs, urlparse
 
 
 # %%
+
+log = logging.getLogger(__name__)
+for variable in ['CLIENT_ID','CLIENT_SECRET','REDIRECT_URL'] :
+    if variable not in os.environ.keys() :
+        log.error(f'Missing required environment variable \'{variable}\', please review the README')
+        exit(1)
 
 app = dash.Dash(__name__)
 app.title = "Fitbit Wellness Report"
@@ -40,12 +51,13 @@ app.layout = html.Div(children=[
         end_date=datetime.today().date() - timedelta(days=1),
         start_date=datetime.today().date() - timedelta(days=365)
         ),
-        dcc.Input(id='input-on-submit', value="", placeholder='API ACCESS TOKEN', type='text'),
         html.Button(id='submit-button', type='submit', children='Submit', n_clicks=0, className="button-primary"),
+        html.Button("Login to FitBit", id="login-button"),
     ]),
+    dcc.Location(id="location"),
+    dcc.Store(id="oauth-token", storage_type='session'),  # Store OAuth token in session storage
     html.Div(id="instruction-area", className="hidden-print", style={'margin-top':'30px', 'margin-right':'auto', 'margin-left':'auto','text-align':'center'}, children=[
-        html.P( "Allowed Date Range : Minimum 40 days — Maximum 365 days", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
-        html.A("HOW TO GET ACCESS TOKEN?", href='https://github.com/arpanghosh8453/fitbit-web-ui-app/blob/main/help/GET_ACCESS_TOKEN.md', target="_blank", style={'text-decoration': 'none'})
+        html.P( "Select a date range to generate a report.", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
         ]),
     html.Div(id='loading-div', style={'margin-top': '40px'}, children=[
     dcc.Loading(
@@ -148,8 +160,58 @@ app.layout = html.Div(children=[
     ]),
 ])
 
+@app.callback(Output('location', 'href'),Input('login-button', 'n_clicks'))
+def authorize(n_clicks):
+    """Authorize the application"""
+    if n_clicks :
+        client_id = os.environ['CLIENT_ID']
+        redirect_uri = os.environ['REDIRECT_URL']
+        scope = 'profile activity cardio_fitness heartrate sleep weight oxygen_saturation respiratory_rate'
+        auth_url = f'https://www.fitbit.com/oauth2/authorize?scope={scope}&client_id={client_id}&response_type=code&prompt=none&redirect_uri={redirect_uri}'
+        return auth_url
+    return dash.no_update
+
+@app.callback(Output('oauth-token', 'data'),Input('location', 'href'))
+def handle_oauth_callback(href):
+    """Process the OAuth callback"""
+    if href:
+        # Parse the query string from the URL to extract the 'code' parameter
+        parsed_url = urlparse(href)
+        query_params = parse_qs(parsed_url.query)
+        oauth_code = query_params.get('code', [None])[0]
+        if oauth_code :
+            print(f"OAuth code received")
+        else :
+            print("No OAuth code found in URL.")
+            return dash.no_update
+        # Exchange code for a token
+        client_id = os.environ['CLIENT_ID']
+        client_isecret = os.environ['CLIENT_SECRET']
+        redirect_uri = os.environ['REDIRECT_URL']
+        token_url='https://api.fitbit.com/oauth2/token?'
+        payload = {'code': oauth_code, 'grant_type': 'authorization_code', 'client_id': client_id, 'redirect_uri': redirect_uri}
+        token_creds = base64.b64encode(f"{client_id}:{client_isecret}".encode("utf-8")).decode("utf-8")
+        token_headers = {"Authorization": f"Basic {token_creds}"}
+        token_response = requests.post(token_url, data=payload, headers=token_headers)
+        token_response_json = token_response.json()
+        access_token = token_response_json.get('access_token')
+        if access_token :
+            print(f"Acceess token received!")
+            return access_token
+        else :
+            print("No access token found in response.")
+    return dash.no_update
+
+@app.callback(Output('login-button', 'children'),Output('login-button', 'disabled'),Input('oauth-token', 'data'))
+def update_login_button(oauth_token):
+    if oauth_token:
+        return html.Span("Logged in"), True
+    else:
+        return "Login to FitBit", False
+
+
 def seconds_to_tick_label(seconds):
-    # Calculate the number of hours, minutes, and remaining seconds
+    """Calculate the number of hours, minutes, and remaining seconds"""
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     mult, remainder = divmod(hours, 12)
@@ -204,7 +266,7 @@ def calculate_table_data(df, measurement_name):
     
     return pd.DataFrame(result_data)
 
-#Sleep stages checkbox functionality
+# Sleep stages checkbox functionality
 @app.callback(Output('graph_sleep', 'figure', allow_duplicate=True), Input('sleep-stage-checkbox', 'value'), State('graph_sleep', 'figure'), prevent_initial_call=True)
 def update_sleep_colors(value, fig):
     if len(value) == 1:
@@ -229,31 +291,30 @@ def set_max_date_allowed(start_date):
     return max_end_date, max_end_date
 
 # Disables the button after click and starts calculations
-@app.callback(Output('errordialog', 'displayed'), Output('submit-button', 'disabled'), Output('my-date-picker-range', 'disabled'), Output('input-on-submit', 'disabled'), Input('submit-button', 'n_clicks'), State('input-on-submit', 'value'), prevent_initial_call=True)
-def disable_button_and_calculate(n_clicks, value):
+@app.callback(Output('errordialog', 'displayed'), Output('submit-button', 'disabled'), Output('my-date-picker-range', 'disabled'), Input('submit-button', 'n_clicks'),State('oauth-token', 'data'),prevent_initial_call=True)
+def disable_button_and_calculate(n_clicks, oauth_token):
     headers = {
-        "Authorization": "Bearer " + value,
+        "Authorization": "Bearer " + oauth_token,
         "Accept": "application/json"
     }
     try:
         token_response = requests.get("https://api.fitbit.com/1/user/-/profile.json", headers=headers)
         token_response.raise_for_status()
     except:
-        return True, False, False, False
-    return False, True, True, True
+        return True, False, False
+    return False, True, True
 
-# fetch data and update graphs on click of submit
+# Fetch data and update graphs on click of submit
 @app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('graph_sleep_regularity', 'figure'), Output('sleep_table', 'children'), Output('sleep-stage-checkbox', 'options'), Output("loading-output-1", "children"),
-Input('submit-button', 'disabled'),
-State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),
+Input('submit-button', 'disabled'),State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),State('oauth-token', 'data'),
 prevent_initial_call=True)
-def update_output(n_clicks, value, start_date, end_date):
+def update_output(n_clicks, start_date, end_date, oauth_token):
 
     start_date = datetime.fromisoformat(start_date).strftime("%Y-%m-%d")
     end_date = datetime.fromisoformat(end_date).strftime("%Y-%m-%d")
 
     headers = {
-        "Authorization": "Bearer " + value,
+        "Authorization": "Bearer " + oauth_token,
         "Accept": "application/json"
     }
 
