@@ -12,6 +12,8 @@
 
 The following docker container `thisisarpanghosh/fitbit-report-app` is available for self hosting of this project. The Web app will be available on http://localhost:5000 with the configuration below. 
 
+If you are interested in replacing the API token entering with a seamless login experience with Fitbit, Check out [PR#10](https://github.com/arpanghosh8453/fitbit-web-ui-app/pull/10) by [@Cronocide](https://github.com/Cronocide) available in the Fitbit-Oauth branch of this repository. 
+
 ```
 services:
     fitbit-ui:
