@@ -145,7 +145,7 @@ app.layout = html.Div(children=[
                     alt="Buy Me a Coffee at ko-fi.com",
                     style={
                         'border': '0px', 
-                        'height': '36px',
+                        'height': '44px',
                         'display': 'block',
                         'margin-left': 'auto',
                         'margin-right': 'auto'
