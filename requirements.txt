@@ -5,4 +5,3 @@ plotly==5.15.0
 requests==2.29.0
 gunicorn
 dash-tools
-dash-dangerously-set-inner-html
