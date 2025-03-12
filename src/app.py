@@ -37,13 +37,13 @@ app.layout = html.Div(children=[
         max_date_allowed=datetime.today().date() - timedelta(days=1),
         min_date_allowed=datetime.today().date() - timedelta(days=1000),
         end_date=datetime.today().date() - timedelta(days=1),
-        start_date=datetime.today().date() - timedelta(days=365)
+        start_date=datetime.today().date() - timedelta(days=364)
         ),
         dcc.Input(id='input-on-submit', value="", placeholder='API ACCESS TOKEN', type='text'),
         html.Button(id='submit-button', type='submit', children='Submit', n_clicks=0, className="button-primary"),
     ]),
     html.Div(id="instruction-area", className="hidden-print", style={'margin-top':'30px', 'margin-right':'auto', 'margin-left':'auto','text-align':'center'}, children=[
-        html.P( "Allowed Date Range : Minimum 40 days — Maximum 365 days", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
+        html.P( "Allowed Date Range : Minimum 40 days — Maximum 364 days", style={'font-size':'17px', 'font-weight': 'bold', 'color':'#54565e'}),
         html.A("HOW TO GET ACCESS TOKEN?", href='https://github.com/arpanghosh8453/fitbit-web-ui-app/blob/main/help/GET_ACCESS_TOKEN.md', target="_blank", style={'text-decoration': 'none'})
         ]),
     html.Div(id='loading-div', style={'margin-top': '40px'}, children=[
@@ -235,7 +235,7 @@ def update_sleep_colors(value, fig):
 def set_max_date_allowed(start_date):
     start = datetime.strptime(start_date, "%Y-%m-%d")
     current_date = datetime.today().date() - timedelta(days=1)
-    max_end_date = min((start + timedelta(days=365)).date(), current_date)
+    max_end_date = min((start + timedelta(days=364)).date(), current_date)
     return max_end_date, max_end_date
 
 # Disables the button after click and starts calculations
