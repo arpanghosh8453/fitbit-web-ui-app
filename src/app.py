@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from datetime import datetime, timedelta
-import dash_dangerously_set_inner_html
 
 
 # %%
@@ -137,13 +136,24 @@ app.layout = html.Div(children=[
         html.Div(id='sleep_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
         html.Div(className="hidden-print", style={'margin': 'auto', 'text-align': 'center'}, children=[
-        dash_dangerously_set_inner_html.DangerouslySetInnerHTML( '''
-        <form action="https://www.paypal.com/donate" method="post" target="_blank">
-<input type="hidden" name="hosted_button_id" value="X4CFTUDJ9ZXX2" />
-<input type="image" src="https://pics.paypal.com/00/s/ZjQwZTU5NjktYzM2Ny00MTM3LTkzZWEtNDkwMjE2NGYzNDM4/file.PNG" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
-<img alt="" border="0" src="https://www.paypal.com/en_CA/i/scr/pixel.gif" width="1" height="1" />
-</form>
-        ''')]),
+            html.A(
+            href="https://ko-fi.com/A0A84F3DP",  # Your link destination
+            target="_blank",  # Opens in a new tab
+            children=[
+                html.Img(
+                    src="https://storage.ko-fi.com/cdn/kofi2.png?v=6",  # Your image URL
+                    alt="Buy Me a Coffee at ko-fi.com",
+                    style={
+                        'border': '0px', 
+                        'height': '36px',
+                        'display': 'block',
+                        'margin-left': 'auto',
+                        'margin-right': 'auto'
+                    }
+                )
+            ]
+        )
+        ]),
         html.Div(style={"height": '25px'}),
     ]),
 ])
