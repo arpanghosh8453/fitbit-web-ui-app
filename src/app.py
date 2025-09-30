@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from datetime import datetime, timedelta
-import dash_dangerously_set_inner_html
 from urllib.parse import parse_qs, urlparse
 
 
@@ -149,13 +148,24 @@ app.layout = html.Div(children=[
         html.Div(id='sleep_table', style={'max-width': '1200px', 'margin': 'auto', 'font-weight': 'bold'}, children=[]),
         html.Div(style={"height": '40px'}),
         html.Div(className="hidden-print", style={'margin': 'auto', 'text-align': 'center'}, children=[
-        dash_dangerously_set_inner_html.DangerouslySetInnerHTML( '''
-        <form action="https://www.paypal.com/donate" method="post" target="_blank">
-<input type="hidden" name="hosted_button_id" value="X4CFTUDJ9ZXX2" />
-<input type="image" src="https://pics.paypal.com/00/s/ZjQwZTU5NjktYzM2Ny00MTM3LTkzZWEtNDkwMjE2NGYzNDM4/file.PNG" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
-<img alt="" border="0" src="https://www.paypal.com/en_CA/i/scr/pixel.gif" width="1" height="1" />
-</form>
-        ''')]),
+            html.A(
+            href="https://ko-fi.com/A0A84F3DP",  # Your link destination
+            target="_blank",  # Opens in a new tab
+            children=[
+                html.Img(
+                    src="https://storage.ko-fi.com/cdn/kofi2.png?v=6",  # Your image URL
+                    alt="Buy Me a Coffee at ko-fi.com",
+                    style={
+                        'border': '0px', 
+                        'height': '44px',
+                        'display': 'block',
+                        'margin-left': 'auto',
+                        'margin-right': 'auto'
+                    }
+                )
+            ]
+        )
+        ]),
         html.Div(style={"height": '25px'}),
     ]),
 ])
@@ -306,7 +316,8 @@ def disable_button_and_calculate(n_clicks, oauth_token):
 
 # Fetch data and update graphs on click of submit
 @app.callback(Output('report-title', 'children'), Output('date-range-title', 'children'), Output('generated-on-title', 'children'), Output('graph_RHR', 'figure'), Output('RHR_table', 'children'), Output('graph_steps', 'figure'), Output('graph_steps_heatmap', 'figure'), Output('steps_table', 'children'), Output('graph_activity_minutes', 'figure'), Output('fat_burn_table', 'children'), Output('cardio_table', 'children'), Output('peak_table', 'children'), Output('graph_weight', 'figure'), Output('weight_table', 'children'), Output('graph_spo2', 'figure'), Output('spo2_table', 'children'), Output('graph_sleep', 'figure'), Output('graph_sleep_regularity', 'figure'), Output('sleep_table', 'children'), Output('sleep-stage-checkbox', 'options'), Output("loading-output-1", "children"),
-Input('submit-button', 'disabled'),State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),State('oauth-token', 'data'),
+Input('submit-button', 'disabled'),
+State('input-on-submit', 'value'), State('my-date-picker-range', 'start_date'), State('my-date-picker-range', 'end_date'),
 prevent_initial_call=True)
 def update_output(n_clicks, start_date, end_date, oauth_token):
 

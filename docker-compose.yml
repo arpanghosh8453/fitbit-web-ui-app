@@ -1,0 +1,7 @@
+services:
+  fitbit-ui:
+    image: thisisarpanghosh/fitbit-report-app:latest
+    container_name: fitbit-report-app
+    ports:
+      - "5000:80"
+    restart: unless-stopped
