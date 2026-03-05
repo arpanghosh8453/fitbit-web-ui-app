@@ -1,9 +1,9 @@
-dash==2.11.1
+dash>=2.15.0
 pandas==2.0.3
 numpy==1.25.0
 plotly==5.15.0
 requests==2.29.0
 gunicorn
 dash-tools
-setuptools
+
 
